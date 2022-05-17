@@ -1,0 +1,9 @@
+calibration:
+  # Extrinsics (lidar -> IMU)
+  extrinsicTrans: [0.0, 0.0, 0.0]
+  extrinsicRot: [1, 0, 0,
+                  0, 1, 0,
+                  0, 0, 1]
+  voxelLeafSize: 0.1
+  resolution: 0.5
+  numThreads: 8

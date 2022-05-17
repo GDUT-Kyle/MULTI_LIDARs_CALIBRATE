@@ -1,0 +1,16 @@
+<launch>
+    <!--- Sim Time -->
+    <param name="/use_sim_time" value="true" />
+
+    <!-- Parameters -->
+    <rosparam file="$(find multi_lidar_calibration)/yaml/initial_guass.yaml" command="load" />
+
+    <param name="map_path" type="string" value="$(find aloam_velodyne_mapping)/map/map.pcd" />
+
+    <param name="traj_path" type="string" value="$(find aloam_velodyne_mapping)/map/traj.csv" />
+    
+    <param name="bag_path" type="string" value="/media/kyle/Software/midCar/horizon/2022-01-05-20-35-31.bag" />
+
+    <node pkg="multi_lidar_calibration" type="calibration" name="calibration" output="screen" />
+
+</launch>

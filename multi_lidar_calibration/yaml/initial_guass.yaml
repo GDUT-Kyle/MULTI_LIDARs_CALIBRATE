@@ -1,9 +1,10 @@
 calibration:
-  # Extrinsics (lidar -> IMU)
+  # Extrinsics (RSLIDAR -> LIVOX)
   extrinsicTrans: [0.0, 0.0, 0.0]
   extrinsicRot: [1, 0, 0,
                   0, 1, 0,
                   0, 0, 1]
+  # NDT parameter
   voxelLeafSize: 0.1
   resolution: 0.5
   numThreads: 8

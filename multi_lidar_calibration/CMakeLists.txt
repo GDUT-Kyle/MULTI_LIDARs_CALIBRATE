@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(multi_lidar_calibration)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3")
 SET(CMAKE_BUILD_TYPE Release)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -36,7 +36,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIR}
 )
 
-add_executable(calibration src/calibration_node.cpp src/calibration.cpp)
+add_executable(calibration src/calibration_node.cpp)
 target_link_libraries(calibration ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 

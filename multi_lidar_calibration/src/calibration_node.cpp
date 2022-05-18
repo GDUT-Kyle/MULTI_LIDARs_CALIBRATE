@@ -2,6 +2,26 @@
 #include "multi_lidar_calibration/loadBag.h"
 #include "multi_lidar_calibration/calibration.h"
 
+// 默认livox的测量频率为10Hz
+void distortion(PointCloud::Ptr input, const Transform& startTrans, const Transform& endTrans)
+{
+    Transform relativeTrans;
+    relativeTrans.rotation = startTrans.rotation.inverse()*endTrans.rotation;
+    size_t inputSize = input->size();
+    // 仅对旋转进行去失真操作
+    for(int i=0; i<inputSize; i++)
+    {
+        float s = 10.0*(input->points[i].intensity-(int)input->points[i].intensity);
+        // cout<<s<<", ";
+        Eigen::Quaterniond thisRot = Eigen::Quaterniond::Identity().slerp(s, relativeTrans.rotation);
+        Eigen::Vector3f thisPoint = Eigen::Vector3f(input->points[i].x, input->points[i].y, input->points[i].z);
+        thisPoint = thisRot.cast<float>() * thisPoint;
+        input->points[i].x = thisPoint.x();
+        input->points[i].y = thisPoint.y();
+        input->points[i].z = thisPoint.z();
+    }
+}
+
 void calibrateLivoxAndMap(bag_loader& LivoxLoader, const loaderTrajAndMap& MapTrajsLoader, 
                 const boost::shared_ptr<pcl::visualization::PCLVisualizer> visual,
                 const pcl::visualization::PointCloudColorHandlerCustom<Point>& matchColor, 
@@ -23,15 +43,33 @@ void calibrateLivoxAndMap(bag_loader& LivoxLoader, const loaderTrajAndMap& MapTr
 
         double s = (Livoxs[i].timestamp-Trajs[leftOdomIndex].timestamp)/(Trajs[rightOdomIndex].timestamp-Trajs[leftOdomIndex].timestamp);
         
-        Transform livoxTrans;
-        livoxTrans.timestamp = Livoxs[i].timestamp;
-        livoxTrans.rotation = Trajs[rightOdomIndex].rotation.slerp(s, Trajs[leftOdomIndex].rotation);
-        livoxTrans.transition = (1.0-s)*Trajs[leftOdomIndex].transition + s*Trajs[rightOdomIndex].transition;
+        Transform startPose;
+        startPose.timestamp = Livoxs[i].timestamp;
+        startPose.rotation = Trajs[leftOdomIndex].rotation.slerp(s, Trajs[rightOdomIndex].rotation);
+        startPose.transition = (1.0-s)*Trajs[leftOdomIndex].transition + s*Trajs[rightOdomIndex].transition;
 
         Eigen::Matrix<double, 4, 4> baseMapMat = Eigen::Matrix<double, 4, 4>::Identity();
-        baseMapMat.block(0, 0, 3, 3) = livoxTrans.rotation.toRotationMatrix();
-        baseMapMat.block(0, 3, 3, 1) = livoxTrans.transition;
+        baseMapMat.block(0, 0, 3, 3) = startPose.rotation.toRotationMatrix();
+        baseMapMat.block(0, 3, 3, 1) = startPose.transition;
         Eigen::Matrix<double, 4, 4> initGuass = baseMapMat*initExtMat; // 配置初始估计
+
+        // 估计最后一个激光点的时间戳的车辆位姿
+        int nextRightOdomIndex = leftOdomIndex;
+        while(Trajs[nextRightOdomIndex].timestamp<Livoxs[i].timestamp+0.1)
+            nextRightOdomIndex++;
+        int nextLeftOdomIndex = nextRightOdomIndex-1;
+        if(nextRightOdomIndex<Trajs.size())
+        {
+            Transform endPose;
+            s = (Livoxs[i].timestamp+0.1-Trajs[nextLeftOdomIndex].timestamp)/(Trajs[nextRightOdomIndex].timestamp-Trajs[nextLeftOdomIndex].timestamp);
+            if(s>=0.0 || s<=1.0)
+            {
+                endPose.timestamp = Livoxs[i].timestamp + 0.1; // 10Hz
+                endPose.rotation = Trajs[nextLeftOdomIndex].rotation.slerp(s, Trajs[nextRightOdomIndex].rotation);
+                endPose.transition = (1.0-s)*Trajs[nextLeftOdomIndex].transition + s*Trajs[nextRightOdomIndex].transition;
+                distortion(Livoxs[i].pointcloud.makeShared(), startPose, endPose);
+            }
+        }
 
         PointCloud::Ptr outputCloudPtr(new PointCloud);
         double fitnessScore = -1.0;
@@ -59,7 +97,7 @@ void calibrateLivoxAndMap(bag_loader& LivoxLoader, const loaderTrajAndMap& MapTr
             validCounter++;
             alignExtMatSum.block(0, 0, 3, 1) += angle.angle()*(angle.axis());
             alignExtMatSum.block(3, 0, 3, 1) += initExtMat.block(0, 3, 3, 1);
-            cout<<alignExtMatSum.transpose()/validCounter<<endl<<endl;
+            // cout<<alignExtMatSum.transpose()/validCounter<<endl<<endl;
         }
 
         visual->updatePointCloud<Point>(outputCloudPtr, matchColor, "match cloud");

@@ -90,7 +90,7 @@ public:
             float s = livox_msg.points[i].offset_time / (float)time_end;
         //       ROS_INFO("_s-------- %.6f ",s);
             // 线数存在整数部分，时间偏移存在
-            pt.intensity = livox_msg.points[i].line + s; // The integer part is line number and the decimal part is timestamp
+            pt.intensity = livox_msg.points[i].line + 0.1*s; // The integer part is line number and the decimal part is timestamp
             PointCloud.pointcloud.push_back(pt);
         }
     }
